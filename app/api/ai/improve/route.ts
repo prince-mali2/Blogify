@@ -30,7 +30,8 @@ export async function POST(request: NextRequest) {
       Requirements:
       1. Humanize the tone: make it sound like it was written by a passionate person.
       2. Structure: DO NOT use #, ##, or ### for headings. Use BOLD text (**Section Title**) instead.
-      3. Engagement: improve clarity, flow, and hooks.
+      3. Spacing: Ensure a blank line exists BEFORE and AFTER every bold section title.
+      4. Engagement: improve clarity, flow, and hooks.
       4. Grammar: fix all errors while keeping the style.
       5. DO NOT include any conversational filler.
       6. Return ONLY the improved content.

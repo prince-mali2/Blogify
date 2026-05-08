@@ -339,17 +339,21 @@ export default function CreatePage() {
                   <h1 className="text-4xl font-black text-white mb-8">{title || 'Untitled Masterpiece'}</h1>
                   <div className="text-slate-300 whitespace-pre-wrap text-lg leading-relaxed font-serif">
                     {content ? content.split('\n').map((line, i) => {
-                      // Simple regex for bold text
+                      const trimmed = line.trim();
+                      const isHeading = trimmed.startsWith('**') && trimmed.endsWith('**') && !trimmed.includes(' ', trimmed.length - 2); 
+                      // More robust check: if it's just bold text on one line
+                      const isOnlyBold = /^(\*\*.*?\*\*)$/.test(trimmed);
+                      
                       const parts = line.split(/(\*\*.*?\*\*)/g);
                       return (
-                        <p key={i} className="mb-4">
+                        <div key={i} className={`${isOnlyBold ? 'mt-10 mb-4' : 'mb-4'}`}>
                           {parts.map((part, j) => {
                             if (part.startsWith('**') && part.endsWith('**')) {
-                              return <strong key={j} className="text-white font-bold">{part.slice(2, -2)}</strong>;
+                              return <strong key={j} className={`text-white font-bold ${isOnlyBold ? 'text-2xl block' : ''}`}>{part.slice(2, -2)}</strong>;
                             }
                             return part;
                           })}
-                        </p>
+                        </div>
                       );
                     }) : 'Your story will appear here as you write...'}
                   </div>

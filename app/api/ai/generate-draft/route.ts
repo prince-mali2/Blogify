@@ -40,7 +40,8 @@ export async function POST(request: NextRequest) {
               1. A catchy human-written title.
               2. DO NOT use #, ##, or ### for headings.
               3. Instead, use BOLD text (e.g. **Subheading**) for all section titles and subheadings.
-              4. Engaging, detailed paragraphs (500-800 words).
+              4. IMPORTANT: Ensure there is a full blank line (double newline) BEFORE and AFTER each bold subheading to keep the structure clear.
+              5. Engaging, detailed paragraphs (500-800 words).
               5. A compelling opening and a natural closing.
               6. NO repetitive AI patterns.
               
