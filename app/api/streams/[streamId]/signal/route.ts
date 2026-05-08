@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Redis } from '@upstash/redis';
+import { prisma } from '@/lib/prisma';
 
 // ---------------------------------------------------------------------------
 // Redis client — created once per cold start (Upstash REST is HTTP-based,
@@ -130,11 +131,20 @@ export async function POST(
     }
     if (type === 'viewer-left') {
       await redis.srem(viewKey(streamId), fromId);
-      // Just track viewers; don't update DB stream here (polling handles count)
       return NextResponse.json({ ok: true });
+    }
+    if (type === 'broadcaster-ready') {
+      // Update Neon DB so any viewer who loads the page sees LIVE status
+      prisma.liveStream
+        .update({ where: { id: streamId }, data: { status: 'LIVE' } })
+        .catch(() => {});
     }
     if (type === 'stream-ended') {
       await redis.del(viewKey(streamId));
+      // Update Neon DB back to OFFLINE
+      prisma.liveStream
+        .update({ where: { id: streamId }, data: { status: 'OFFLINE' } })
+        .catch(() => {});
     }
 
     // ---- Store signal in sorted set (score = timestamp) ----

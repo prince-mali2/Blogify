@@ -233,8 +233,9 @@ export default function StreamViewerPage() {
       }),
     });
 
-    // Start polling
-    lastTimestampRef.current = Date.now() - 500;
+    // Start polling — look back 10 minutes so we catch broadcaster-ready
+    // even if the stream went live before this viewer opened the page
+    lastTimestampRef.current = Date.now() - 10 * 60 * 1000;
     pollRef.current = setInterval(pollAll, 1500);
 
     return () => {
