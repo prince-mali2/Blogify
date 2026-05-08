@@ -159,6 +159,18 @@ export default function StreamViewerPage() {
         if (sig.type === 'broadcaster-ready') {
           setIsLive(true);
           setStreamEnded(false);
+          // Re-announce ourselves so the broadcaster sends us a fresh WebRTC offer.
+          // This handles the case where we arrived on the page before Go Live was clicked.
+          fetch(`/api/streams/${streamId}/signal`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'viewer-joined',
+              fromId: viewerIdRef.current,
+              toId: 'all',
+              payload: { username: user?.username || 'Anonymous' },
+            }),
+          }).catch(() => {});
         }
 
         if (sig.type === 'stream-ended') {

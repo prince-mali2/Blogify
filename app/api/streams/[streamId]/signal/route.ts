@@ -80,13 +80,15 @@ export async function GET(
       })
       .filter(Boolean) as SignalMessage[];
 
-    // Filter to signals relevant for this viewer
+    // Filter to signals relevant for this viewer/broadcaster.
+    // ALWAYS include broadcast signals (toId === 'all') so the broadcaster
+    // receives viewer-joined events regardless of its own viewerId.
     const signals = viewerId
       ? all.filter(
           (s) =>
-            s.toId === 'all' ||
-            s.toId === viewerId ||
-            s.fromId === viewerId
+            s.toId === 'all' ||          // broadcast to everyone
+            s.toId === viewerId ||       // addressed to me
+            s.fromId === viewerId        // sent by me (loop-back for debugging)
         )
       : all;
 

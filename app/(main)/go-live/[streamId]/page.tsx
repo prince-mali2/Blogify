@@ -50,8 +50,10 @@ export default function GoLivePage() {
   const localStreamRef = useRef<MediaStream | null>(null);
   const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const pollRef = useRef<NodeJS.Timeout | null>(null);
-  const lastTimestampRef = useRef(Date.now() - 2000);
+  const lastTimestampRef = useRef(Date.now() - 60000);
   const myId = useRef(`broadcaster-${user?.id || 'anon'}`);
+  const isLiveRef = useRef(false);
+  const pendingViewers = useRef<Set<string>>(new Set());
 
   // Fetch stream info
   useEffect(() => {
@@ -86,19 +88,41 @@ export default function GoLivePage() {
     };
   }, [startCamera]);
 
-  // Create peer connection for a viewer
+  // Start polling IMMEDIATELY on mount — so we catch viewer-joined signals
+  // even before the broadcaster clicks Go Live.
+  useEffect(() => {
+    if (!streamId) return;
+    lastTimestampRef.current = Date.now() - 60000; // look back 60s on mount
+    pollRef.current = setInterval(pollSignals, 1500);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [streamId]);
+
+  // Create peer connection for a viewer and send offer
   const createPeerForViewer = useCallback(async (viewerId: string) => {
-    if (peersRef.current.has(viewerId)) return;
-    
+    // Don't create if already connected
+    const existing = peersRef.current.get(viewerId);
+    if (existing && existing.connectionState !== 'failed' && existing.connectionState !== 'closed') return;
+    // Remove stale connection
+    if (existing) { existing.close(); peersRef.current.delete(viewerId); }
+
+    // If not live yet, queue the viewer for when we go live
+    if (!isLiveRef.current || !localStreamRef.current) {
+      pendingViewers.current.add(viewerId);
+      return;
+    }
+
     const pc = new RTCPeerConnection(ICE_SERVERS);
     peersRef.current.set(viewerId, pc);
 
-    // Add all local tracks
-    localStreamRef.current?.getTracks().forEach(track => {
+    // Add all local tracks to the peer connection
+    localStreamRef.current.getTracks().forEach(track => {
       pc.addTrack(track, localStreamRef.current!);
     });
 
-    // ICE candidates
+    // Send ICE candidates to this viewer
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         fetch(`/api/streams/${streamId}/signal`, {
@@ -115,16 +139,14 @@ export default function GoLivePage() {
     };
 
     pc.onconnectionstatechange = () => {
+      console.log(`Peer [${viewerId}] state: ${pc.connectionState}`);
       if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
         peersRef.current.delete(viewerId);
       }
     };
 
-    // Create offer
-    const offer = await pc.createOffer({
-      offerToReceiveAudio: false,
-      offerToReceiveVideo: false,
-    });
+    // Create and send offer (send-only from broadcaster)
+    const offer = await pc.createOffer({ offerToReceiveAudio: false, offerToReceiveVideo: false });
     await pc.setLocalDescription(offer);
 
     await fetch(`/api/streams/${streamId}/signal`, {
@@ -179,6 +201,9 @@ export default function GoLivePage() {
       if (!localStreamRef.current) return;
     }
 
+    isLiveRef.current = true;
+    setStatus('live');
+
     // Notify broadcaster is ready
     await fetch(`/api/streams/${streamId}/signal`, {
       method: 'POST',
@@ -191,13 +216,17 @@ export default function GoLivePage() {
       }),
     });
 
-    setStatus('live');
-    lastTimestampRef.current = Date.now() - 500;
-    pollRef.current = setInterval(pollSignals, 1500);
+    // Connect to any viewers who joined BEFORE the broadcaster went live
+    const pending = Array.from(pendingViewers.current);
+    pendingViewers.current.clear();
+    for (const vid of pending) {
+      await createPeerForViewer(vid);
+    }
   };
 
   // End stream
   const endStream = async () => {
+    isLiveRef.current = false;
     // Close all peer connections
     peersRef.current.forEach(pc => pc.close());
     peersRef.current.clear();
@@ -239,6 +268,7 @@ export default function GoLivePage() {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
       peersRef.current.forEach(pc => pc.close());
+      localStreamRef.current?.getTracks().forEach(t => t.stop());
     };
   }, []);
 
