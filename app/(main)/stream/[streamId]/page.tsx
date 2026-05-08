@@ -38,18 +38,10 @@ function generateViewerId() {
 
 const safePlay = async (videoEl: HTMLVideoElement) => {
   try {
-    videoEl.pause();
-    await new Promise(resolve => setTimeout(resolve, 100));
-    const playPromise = videoEl.play();
-    if (playPromise !== undefined) {
-      await playPromise;
-    }
+    await videoEl.play();
   } catch (err: any) {
-    if (err.name === 'AbortError' || err.name === 'NotAllowedError') {
-      console.log('Autoplay blocked, user interaction needed');
-    } else {
-      console.error('Play error:', err);
-    }
+    // Autoplay blocked — video will start on user interaction (unmute click)
+    console.log('Play attempt:', err?.name || err);
   }
 };
 
@@ -101,29 +93,16 @@ export default function StreamViewerPage() {
     pcRef.current = pc;
 
     pc.ontrack = (event) => {
-      console.log('Got remote track:', event.track.kind, event.streams);
-      
+      console.log('Got remote track:', event.track.kind);
       if (!remoteVideoRef.current) return;
-      
       const videoEl = remoteVideoRef.current;
-      
+
       if (event.streams && event.streams[0]) {
-        // Only set srcObject if it changed
-        if (videoEl.srcObject !== event.streams[0]) {
-          videoEl.srcObject = event.streams[0];
-          videoEl.muted = true;
-          
-          // Wait for loadedmetadata before playing
-          videoEl.onloadedmetadata = () => {
-            safePlay(videoEl);
-          };
-          
-          // Fallback if metadata already loaded
-          if (videoEl.readyState >= 2) {
-            safePlay(videoEl);
-          }
-        }
+        videoEl.srcObject = event.streams[0];
+        videoEl.muted = true;
         setIsConnected(true);
+        // Try to play immediately
+        safePlay(videoEl);
       }
     };
 
@@ -151,6 +130,10 @@ export default function StreamViewerPage() {
       if (pc.connectionState === 'connected') {
         setIsConnected(true);
         console.log('WebRTC connected successfully!');
+        // Retry play when fully connected
+        if (remoteVideoRef.current && remoteVideoRef.current.srcObject) {
+          safePlay(remoteVideoRef.current);
+        }
       }
       if (pc.connectionState === 'failed') {
         console.log('Connection failed, retrying ICE...');
