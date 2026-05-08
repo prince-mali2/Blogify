@@ -265,7 +265,7 @@ export default function DashboardPage() {
                         )}
                       </span>
                       <span className="flex items-center gap-2">
-                        <Users className="w-4 h-4 text-cyan-500" /> {stream.status === 'live' ? `${stream.viewerCount} WATCHING` : `${stream.viewerCount} TOTAL VIEWS`}
+                        <Users className="w-4 h-4 text-cyan-500" /> {stream.status === 'live' ? `${stream._count?.viewers || 0} WATCHING` : `${stream._count?.viewers || 0} TOTAL VIEWS`}
                       </span>
                     </div>
                   </div>

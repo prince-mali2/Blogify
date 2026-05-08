@@ -38,6 +38,9 @@ export async function GET(
       where: { creatorId: userId },
       orderBy: { createdAt: 'desc' },
       take: 10,
+      include: {
+        _count: { select: { viewers: true } },
+      },
     }),
 
     // Real per-day likes for this user's blogs (last 30 days)

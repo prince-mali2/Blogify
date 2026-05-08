@@ -25,7 +25,7 @@ export default function StreamsPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const liveStreams = streams.filter(s => s.status === 'live' || s.status === 'active').sort((a, b) => (b.viewerCount || 0) - (a.viewerCount || 0));
+  const liveStreams = streams.filter(s => s.status === 'live' || s.status === 'active').sort((a, b) => (b._count?.viewers || 0) - (a._count?.viewers || 0));
   const otherStreams = streams.filter(s => s.status !== 'live' && s.status !== 'active');
   const featuredStream = liveStreams.length > 0 ? liveStreams[0] : null;
   const standardLiveStreams = liveStreams.slice(1);
@@ -73,7 +73,7 @@ export default function StreamsPage() {
                 </div>
               )}
               <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-black/70 backdrop-blur text-white text-xs font-medium px-2.5 py-1 rounded-md">
-                <Eye className="w-3.5 h-3.5 text-slate-300" /> {stream.viewerCount || 0}
+                <Eye className="w-3.5 h-3.5 text-slate-300" /> {stream._count?.viewers || 0}
               </div>
             </div>
 
@@ -97,10 +97,10 @@ export default function StreamsPage() {
                 <div className="flex items-center gap-3">
                   <div className={`rounded-full flex items-center justify-center text-white font-bold relative shrink-0 ${isFeatured ? 'w-10 h-10 bg-indigo-600 text-sm' : 'w-8 h-8 bg-indigo-600 text-xs'}`}>
                     {isLive && <div className="absolute inset-0 rounded-full border-2 border-red-500 animate-ping opacity-20" />}
-                    {(stream.authorUsername || 'A')[0].toUpperCase()}
+                    {(stream.creator?.username || stream.authorUsername || 'A')[0].toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <span className={`block text-white font-medium truncate ${isFeatured ? 'text-sm' : 'text-xs'}`}>{stream.authorUsername}</span>
+                    <span className={`block text-white font-medium truncate ${isFeatured ? 'text-sm' : 'text-xs'}`}>{stream.creator?.username || stream.authorUsername || 'Anonymous'}</span>
                     <span className="block text-slate-500 text-[10px]">Creator</span>
                   </div>
                 </div>
