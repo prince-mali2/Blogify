@@ -25,7 +25,18 @@ export async function POST(request: NextRequest) {
 
     const { text } = await generateText({
       model: groq('llama-3.3-70b-versatile'),
-      prompt: `Please improve the following blog content. Enhance its structure, clarity, and engagement. Make it sound professional yet accessible. Do not change the core meaning, just improve the writing quality and fix any grammatical errors. Return only the improved content, using markdown formatting.\n\nContent to improve:\n${content}`,
+      prompt: `As an expert editor, please improve the following blog content. 
+      
+      Requirements:
+      1. Humanize the tone: make it sound like it was written by a passionate person, not an AI.
+      2. Clear structure: use #, ##, and ### headings to create a clear hierarchy.
+      3. Engagement: improve clarity, flow, and hooks.
+      4. Grammar: fix all errors while keeping the professional yet conversational style.
+      5. DO NOT include any conversational filler (like "Here is the improved version").
+      6. Return ONLY the improved markdown content.
+
+      Content to improve:
+      ${content}`,
       maxTokens: 2000,
     });
 
