@@ -77,6 +77,7 @@ export default function StreamViewerPage() {
   const chatPollRef = useRef<NodeJS.Timeout | null>(null);
   const lastTimestampRef = useRef(Date.now() - 2000);
   const viewerIdRef = useRef(generateViewerId());
+  const broadcasterIdRef = useRef<string>('broadcaster');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch initial stream data
@@ -135,7 +136,7 @@ export default function StreamViewerPage() {
             type: 'ice-candidate',
             payload: event.candidate,
             fromId: viewerIdRef.current,
-            toId: 'broadcaster',
+            toId: broadcasterIdRef.current,
           }),
         });
       }
@@ -184,6 +185,9 @@ export default function StreamViewerPage() {
         }
 
         if (sig.type === 'offer' && sig.toId === viewerIdRef.current) {
+          // Store the broadcaster's real ID so answer + ICE candidates reach them
+          broadcasterIdRef.current = sig.fromId;
+
           const pc = createPeerConnection();
           await pc.setRemoteDescription(new RTCSessionDescription(sig.payload));
           const answer = await pc.createAnswer();
@@ -195,7 +199,7 @@ export default function StreamViewerPage() {
             body: JSON.stringify({
               type: 'answer',
               fromId: viewerIdRef.current,
-              toId: 'broadcaster',
+              toId: broadcasterIdRef.current,
               payload: { sdp: answer.sdp, type: answer.type },
             }),
           });
