@@ -28,12 +28,12 @@ export async function POST(request: NextRequest) {
       prompt: `As an expert editor, please improve the following blog content. 
       
       Requirements:
-      1. Humanize the tone: make it sound like it was written by a passionate person, not an AI.
-      2. Clear structure: use #, ##, and ### headings to create a clear hierarchy.
+      1. Humanize the tone: make it sound like it was written by a passionate person.
+      2. Structure: DO NOT use #, ##, or ### for headings. Use BOLD text (**Section Title**) instead.
       3. Engagement: improve clarity, flow, and hooks.
-      4. Grammar: fix all errors while keeping the professional yet conversational style.
-      5. DO NOT include any conversational filler (like "Here is the improved version").
-      6. Return ONLY the improved markdown content.
+      4. Grammar: fix all errors while keeping the style.
+      5. DO NOT include any conversational filler.
+      6. Return ONLY the improved content.
 
       Content to improve:
       ${content}`,

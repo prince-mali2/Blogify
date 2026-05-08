@@ -338,7 +338,20 @@ export default function CreatePage() {
                 <div className="prose prose-invert max-w-none p-8 bg-white/5 border border-white/10 rounded-2xl min-h-[500px]">
                   <h1 className="text-4xl font-black text-white mb-8">{title || 'Untitled Masterpiece'}</h1>
                   <div className="text-slate-300 whitespace-pre-wrap text-lg leading-relaxed font-serif">
-                    {content || 'Your story will appear here as you write...'}
+                    {content ? content.split('\n').map((line, i) => {
+                      // Simple regex for bold text
+                      const parts = line.split(/(\*\*.*?\*\*)/g);
+                      return (
+                        <p key={i} className="mb-4">
+                          {parts.map((part, j) => {
+                            if (part.startsWith('**') && part.endsWith('**')) {
+                              return <strong key={j} className="text-white font-bold">{part.slice(2, -2)}</strong>;
+                            }
+                            return part;
+                          })}
+                        </p>
+                      );
+                    }) : 'Your story will appear here as you write...'}
                   </div>
                 </div>
               </TabsContent>
