@@ -1,63 +1,157 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { store, addSignal, getSignals, viewers } from '@/lib/store';
+import { Redis } from '@upstash/redis';
 
-type Params = { params: Promise<{ streamId: string }> };
+// ---------------------------------------------------------------------------
+// Redis client — created once per cold start (Upstash REST is HTTP-based,
+// safe to use in serverless with no persistent connections).
+// Falls back gracefully if env vars are not set (dev without Redis).
+// ---------------------------------------------------------------------------
+let redis: Redis | null = null;
+try {
+  if (
+    process.env.UPSTASH_REDIS_REST_URL &&
+    process.env.UPSTASH_REDIS_REST_TOKEN
+  ) {
+    redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    });
+  }
+} catch {
+  redis = null;
+}
 
-// GET: poll for new signals
-export async function GET(req: NextRequest, { params }: Params) {
+// ---------------------------------------------------------------------------
+// Key helpers
+// ---------------------------------------------------------------------------
+const sigKey = (streamId: string) => `signals:${streamId}`;
+const viewKey = (streamId: string) => `viewers:${streamId}`;
+const SIGNAL_TTL = 3600; // 1 hour
+const MAX_SIGNALS = 200;
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+interface SignalMessage {
+  id: string;
+  streamId: string;
+  fromId: string;
+  toId: string;
+  type: string;
+  payload: unknown;
+  createdAt: number;
+}
+
+// ---------------------------------------------------------------------------
+// GET — poll for new signals since `after` timestamp
+// ---------------------------------------------------------------------------
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ streamId: string }> }
+) {
   const { streamId } = await params;
   const { searchParams } = new URL(req.url);
   const after = parseInt(searchParams.get('after') || '0');
   const viewerId = searchParams.get('viewerId') || '';
 
-  const msgs = getSignals(streamId, after, viewerId);
-  
-  // Also return current viewer count
-  const viewerSet = viewers.get(streamId) || new Set();
-  
-  return NextResponse.json({ 
-    signals: msgs,
-    viewerCount: viewerSet.size,
-    serverTime: Date.now()
-  });
+  const serverTime = Date.now();
+
+  if (!redis) {
+    // No Redis configured — return empty (dev fallback)
+    return NextResponse.json({ signals: [], viewerCount: 0, serverTime });
+  }
+
+  try {
+    // ZRANGEBYSCORE: get all signals with score (createdAt) > after
+    const raw = await redis.zrangebyscore(
+      sigKey(streamId),
+      after + 1,
+      '+inf'
+    ) as string[];
+
+    const all: SignalMessage[] = raw
+      .map((s) => {
+        try { return JSON.parse(s) as SignalMessage; } catch { return null; }
+      })
+      .filter(Boolean) as SignalMessage[];
+
+    // Filter to signals relevant for this viewer
+    const signals = viewerId
+      ? all.filter(
+          (s) =>
+            s.toId === 'all' ||
+            s.toId === viewerId ||
+            s.fromId === viewerId
+        )
+      : all;
+
+    // Viewer count
+    const viewerCount = (await redis.scard(viewKey(streamId))) ?? 0;
+
+    return NextResponse.json({ signals, viewerCount, serverTime });
+  } catch (err) {
+    console.error('Signal GET error:', err);
+    return NextResponse.json({ signals: [], viewerCount: 0, serverTime });
+  }
 }
 
-// POST: send a signal
-export async function POST(req: NextRequest, { params }: Params) {
+// ---------------------------------------------------------------------------
+// POST — add a signal
+// ---------------------------------------------------------------------------
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ streamId: string }> }
+) {
   const { streamId } = await params;
   const body = await req.json();
   const { type, fromId, toId, payload } = body;
 
-  // Handle viewer tracking
-  if (type === 'viewer-joined') {
-    if (!viewers.has(streamId)) viewers.set(streamId, new Set());
-    viewers.get(streamId)!.add(fromId);
-    // Update stream viewer count
-    const stream = store.streams.get(streamId);
-    if (stream) {
-      stream.viewerCount = viewers.get(streamId)!.size;
-      store.streams.set(streamId, stream);
-    }
-  }
-  if (type === 'viewer-left') {
-    viewers.get(streamId)?.delete(fromId);
-    const stream = store.streams.get(streamId);
-    if (stream) {
-      stream.viewerCount = (viewers.get(streamId) || new Set()).size;
-      store.streams.set(streamId, stream);
-    }
+  if (!redis) {
+    // No Redis configured — silently succeed (dev fallback)
     return NextResponse.json({ ok: true });
   }
-  if (type === 'stream-ended') {
-    viewers.delete(streamId);
-    const stream = store.streams.get(streamId);
-    if (stream) { stream.status = 'ended'; stream.viewerCount = 0; store.streams.set(streamId, stream); }
-  }
-  if (type === 'broadcaster-ready') {
-    const stream = store.streams.get(streamId);
-    if (stream) { stream.status = 'live'; store.streams.set(streamId, stream); }
-  }
 
-  const signal = addSignal({ streamId, fromId, toId: toId || 'all', type, payload });
-  return NextResponse.json({ ok: true, signal });
+  try {
+    const now = Date.now();
+    const signal: SignalMessage = {
+      id: `${now.toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+      streamId,
+      fromId,
+      toId: toId || 'all',
+      type,
+      payload,
+      createdAt: now,
+    };
+
+    // ---- Viewer tracking ----
+    if (type === 'viewer-joined') {
+      await redis.sadd(viewKey(streamId), fromId);
+      await redis.expire(viewKey(streamId), SIGNAL_TTL);
+    }
+    if (type === 'viewer-left') {
+      await redis.srem(viewKey(streamId), fromId);
+      // Just track viewers; don't update DB stream here (polling handles count)
+      return NextResponse.json({ ok: true });
+    }
+    if (type === 'stream-ended') {
+      await redis.del(viewKey(streamId));
+    }
+
+    // ---- Store signal in sorted set (score = timestamp) ----
+    await redis.zadd(sigKey(streamId), { score: now, member: JSON.stringify(signal) });
+
+    // Trim to last MAX_SIGNALS entries
+    const total = await redis.zcard(sigKey(streamId));
+    if (total > MAX_SIGNALS) {
+      await redis.zremrangebyrank(sigKey(streamId), 0, total - MAX_SIGNALS - 1);
+    }
+
+    // Reset TTL on every write
+    await redis.expire(sigKey(streamId), SIGNAL_TTL);
+
+    return NextResponse.json({ ok: true, signal });
+  } catch (err) {
+    console.error('Signal POST error:', err);
+    return NextResponse.json({ ok: false, error: 'Signal store error' }, { status: 500 });
+  }
 }
