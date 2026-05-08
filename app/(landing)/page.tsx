@@ -1,8 +1,10 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/app/contexts/AuthContext';
 import {
   Zap,
   Globe,
@@ -95,6 +97,8 @@ function FeatureCard({
 
 export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false);
+  const { isAuthenticated, user, loading } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -165,10 +169,18 @@ export default function LandingPage() {
             <span>Blogify</span>
           </Link>
           <div className="blogify-nav-links">
-            <Link href="/login" className="blogify-nav-link">Sign In</Link>
-            <Link href="/register" className="blogify-cta-btn">
-              Get Started <ArrowRight className="w-4 h-4 inline ml-1" />
-            </Link>
+            {isAuthenticated ? (
+              <Link href="/dashboard" className="blogify-cta-btn">
+                Dashboard <ArrowRight className="w-4 h-4 inline ml-1" />
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" className="blogify-nav-link">Sign In</Link>
+                <Link href="/register" className="blogify-cta-btn">
+                  Get Started <ArrowRight className="w-4 h-4 inline ml-1" />
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -191,11 +203,18 @@ export default function LandingPage() {
         </p>
 
         <div className="blogify-hero-actions">
-          <Link href="/register" className="blogify-primary-btn">
-            <Sparkles className="w-5 h-5" />
-            Start for Free
-          </Link>
-          <Link href="/login" className="blogify-ghost-btn">
+          {isAuthenticated ? (
+            <Link href="/dashboard" className="blogify-primary-btn">
+              <Sparkles className="w-5 h-5" />
+              Go to Dashboard
+            </Link>
+          ) : (
+            <Link href="/register" className="blogify-primary-btn">
+              <Sparkles className="w-5 h-5" />
+              Start for Free
+            </Link>
+          )}
+          <Link href={isAuthenticated ? "/dashboard" : "/login"} className="blogify-ghost-btn">
             <Play className="w-4 h-4" />
             Watch Demo
           </Link>

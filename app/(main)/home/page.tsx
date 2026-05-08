@@ -27,7 +27,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push('/index');
+      router.push('/');
     }
   }, [isAuthenticated, authLoading, router]);
 
