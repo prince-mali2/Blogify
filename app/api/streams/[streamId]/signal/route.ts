@@ -63,16 +63,20 @@ export async function GET(
   }
 
   try {
-    // ZRANGEBYSCORE: get all signals with score (createdAt) > after
-    const raw = await redis.zrangebyscore(
+    // zrange with byScore replaces zrangebyscore in @upstash/redis
+    const raw = await redis.zrange(
       sigKey(streamId),
       after + 1,
-      '+inf'
-    ) as string[];
+      '+inf',
+      { byScore: true }
+    );
 
-    const all: SignalMessage[] = raw
+    const all: SignalMessage[] = (raw as unknown[])
       .map((s) => {
-        try { return JSON.parse(s) as SignalMessage; } catch { return null; }
+        try {
+          if (typeof s === 'string') return JSON.parse(s) as SignalMessage;
+          return s as SignalMessage;
+        } catch { return null; }
       })
       .filter(Boolean) as SignalMessage[];
 
