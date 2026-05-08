@@ -1,174 +1,111 @@
-# BLOGIFY
+# BLOGIFY - The Ultimate Creator Platform
 
-BLOGIFY is a Next.js (App Router) blogging + live streaming demo app. It ships with blog CRUD APIs + UI, a creator dashboard UI, a WebRTC-based “Go Live” studio + viewer page, and AI helpers for drafting/improving content.
+Blogify is a modern, full-stack content creation platform that combines professional blogging, real-time live streaming, and AI-powered tools into a single, seamless experience. It's designed to empower creators with state-of-the-art tools for audience engagement and performance tracking.
 
-**Storage note (important)**: Most app data is stored in a **global in-memory store** with **file persistence** to `.data/*.json` (see `lib/store.ts`). A PostgreSQL + Prisma schema exists at `prisma/schema.prisma`, but the current Next.js API routes do **not** use Prisma.
+---
 
-## Features
+## 🌟 Key Features
 
-- **Auth (demo)**: register + login, token stored in `localStorage`
-- **Blogs**: list/search/filter, create (published or draft), read (increments views), update/delete, comments, like toggle
-- **Profiles**: public profile by username + simple stats; profile update by user id
-- **Creator dashboard**: analytics summary + recent blogs/streams
-- **Live streaming**: WebRTC peer-to-peer broadcast (studio + viewer), REST polling signaling, live chat via API
-- **AI tools**:
-  - Groq-powered draft generation (`/api/ai/generate-draft`, `/api/generate-blog`)
-  - local “improve content” and “SEO suggestions” helpers
+### 📝 Professional Blogging
+- **Rich Text Editor**: A premium writing experience for long-form content.
+- **AI Writing Assistant**: Powered by Groq, help generate drafts, optimize SEO, and refine content.
+- **Social Features**: Like, comment, and share functionality to build a community.
+- **SEO Optimized**: Automatic metadata generation for better search visibility.
 
-## Tech stack (from `package.json` and source)
+### 🎥 Real-Time Live Streaming
+- **WebRTC Technology**: Direct Peer-to-Peer streaming for ultra-low latency.
+- **Live Chat**: Real-time engagement with viewers during broadcasts.
+- **Cross-Instance Signaling**: Powered by Upstash Redis to ensure reliable connections globally.
+- **Studio Mode**: A dedicated broadcaster dashboard to manage camera, mic, and stream status.
 
-- **Framework**: Next.js `16.1.6`
-- **Language**: TypeScript `5.7.3`
-- **UI**: React `19.2.4`
-- **Styling**: Tailwind CSS `^4.2.0`, `clsx`, `tailwind-merge`, `tw-animate-css`
-- **Component primitives**: Radix UI + shadcn-style components under `components/ui/`
-- **Charts**: Recharts
-- **3D background**: Three.js + `@react-three/fiber` + `@react-three/drei`
-- **Forms/validation**: `react-hook-form`, `zod`, `@hookform/resolvers`
-- **AI**: `ai` SDK + `@ai-sdk/groq`
-- **Database schema**: Prisma schema for PostgreSQL (`prisma/schema.prisma`)
+### 📊 Advanced Analytics
+- **Creator Dashboard**: Comprehensive overview of performance.
+- **Data Visualization**: Interactive charts for views, likes, and follower growth.
+- **Insight Generation**: Analyze which content resonates most with your audience.
 
-## Folder structure
+### 🔐 Secure Infrastructure
+- **Firebase Authentication**: Support for Email/Password, Google, and GitHub logins.
+- **JWT Protection**: Secure server-side validation for all API routes.
+- **Persistent Storage**: Robust PostgreSQL database hosted on Neon.
 
-```
-app/
-  (auth)/                 auth pages layout + pages
-  (landing)/              landing layout + page
-  (main)/                 main app layout + pages
-  api/                    Next.js API routes
-  contexts/               React context (Auth)
-  layout.tsx              root layout + providers + metadata
-components/
-  Header.tsx
-  ThreeBackground.tsx
-  ui/
-hooks/
-lib/
-prisma/
-server/
-public/
-styles/
-```
+---
 
-## Pages / screens
+## 🛠 Tech Stack
 
-- `/` (authenticated home feed): `app/(main)/page.tsx`
-- `/index` (landing page): `app/(landing)/index/page.tsx`
-- `/login`: `app/(auth)/login/page.tsx`
-- `/register`: `app/(auth)/register/page.tsx`
-- `/blog`: `app/(main)/blog/page.tsx`
-- `/blog/[slug]`: `app/(main)/blog/[slug]/page.tsx`
-- `/create`: `app/(main)/create/page.tsx`
-- `/dashboard`: `app/(main)/dashboard/page.tsx`
-- `/profile/[username]`: `app/(main)/profile/[username]/page.tsx`
-- `/streams`: `app/(main)/streams/page.tsx`
-- `/stream/[streamId]`: `app/(main)/stream/[streamId]/page.tsx`
-- `/create-stream`: `app/(main)/create-stream/page.tsx`
-- `/go-live/[streamId]`: `app/(main)/go-live/[streamId]/page.tsx`
+- **Frontend**: [Next.js 15+](https://nextjs.org/) (App Router, React 19)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/) & [Lucide React](https://lucide.dev/)
+- **Database**: [PostgreSQL](https://www.postgresql.org/) (via [Neon DB](https://neon.tech/))
+- **ORM**: [Prisma](https://www.prisma.io/)
+- **Authentication**: [Firebase Auth](https://firebase.google.com/products/auth)
+- **Real-Time Signaling**: [Upstash Redis](https://upstash.com/)
+- **AI Engine**: [Groq Cloud API](https://groq.com/)
+- **Streaming**: WebRTC (STUN/TURN)
 
-## API endpoints (Next.js `app/api/**/route.ts`)
+---
 
-Base URL: `http://localhost:3000`
+## 🚀 How It Works (Technical Overview)
 
-### Auth
+### 1. Database Architecture
+The project utilizes Prisma as an ORM to communicate with a Neon PostgreSQL database. This ensures high availability and scalability. The schema includes robust models for Users, Blogs, LiveStreams, Comments, and Analytics.
 
-- **POST** `/api/auth/register`: register user (persists to `.data/users.json`), returns `{ user, token }`
-- **POST** `/api/auth/login`: login, returns `{ user, token }`
+### 2. Authentication Flow
+Blogify uses a hybrid authentication model:
+1. User authenticates via **Firebase** (Client-side).
+2. Firebase token is sent to `/api/auth/firebase-sync`.
+3. The server validates the token, upserts the user into the **PostgreSQL** database, and issues a **Custom JWT**.
+4. This JWT is then used for all subsequent secure API calls.
 
-### Users
+### 3. Live Streaming Signaling
+Since the app is deployed on Vercel (Serverless), standard in-memory signaling fails as requests hit different server instances.
+- **The Solution**: We implemented a signaling layer using **Upstash Redis**.
+- **The Flow**: Broadcasters and Viewers exchange WebRTC "Offers," "Answers," and "ICE Candidates" by reading/writing to a shared Redis Sorted Set. This allows WebRTC handshakes to complete even when users are on different continents or server instances.
 
-- **GET** `/api/users/[userId]`: get user by id (password removed)
-- **PUT** `/api/users/[userId]`: update user fields (password ignored), persists to `.data/users.json`
-- **GET** `/api/users/profile/[username]`: profile by username + published blogs + streams + stats
+### 4. AI Integration
+The blogging suite integrates with Groq's high-speed LLMs. When a user requests "AI Optimization," the server sends the blog content to Groq with specific prompts to improve readability, suggest keywords, and generate SEO-friendly excerpts.
 
-### Blogs
+---
 
-- **GET** `/api/blogs`: list blogs
-  - query params: `authorId`, `published`, `q`
-- **POST** `/api/blogs`: create blog (published or draft)
-- **GET** `/api/blogs/[slug]`: get blog by slug (or id), increments views, includes comments
-- **PUT** `/api/blogs/[slug]`: update blog by slug (or id)
-- **DELETE** `/api/blogs/[slug]`: delete blog by slug (or id)
-- **GET** `/api/blogs/[slug]/comments`: list comments (slug or id)
-- **POST** `/api/blogs/[slug]/comments`: create comment (slug or id)
-- **POST** `/api/blogs/[slug]/like`: toggle like (expects body `{ userId }`)
+## ⚙️ Installation & Setup
 
-### Streams + signaling + chat
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/prince-mali2/Blogify.git
+   cd Blogify_live
+   ```
 
-- **GET** `/api/streams`: list streams
-- **POST** `/api/streams`: create stream
-- **GET** `/api/streams/[streamId]`: get stream + last 50 chat messages + creator info
-- **PUT** `/api/streams/[streamId]`: update stream fields
-- **GET** `/api/streams/[streamId]/signal`: poll signaling messages
-  - query params: `after` (timestamp), `viewerId`
-- **POST** `/api/streams/[streamId]/signal`: send signal (offer/answer/ice-candidate/viewer-joined/etc.)
-- **POST** `/api/chat/[streamId]/message`: create chat message
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
 
-### Analytics
+3. **Configure Environment Variables**:
+   Create a `.env.local` file with the following keys:
+   ```env
+   DATABASE_URL="your_neon_db_url"
+   NEXT_PUBLIC_FIREBASE_API_KEY="..."
+   # ... (Add other Firebase, Groq, and Redis keys)
+   UPSTASH_REDIS_REST_URL="..."
+   UPSTASH_REDIS_REST_TOKEN="..."
+   JWT_SECRET="..."
+   ```
 
-- **GET** `/api/analytics/creator/[userId]/dashboard`: dashboard analytics + recent content
+4. **Initialize Database**:
+   ```bash
+   npx prisma db push
+   ```
 
-### AI
+5. **Run the development server**:
+   ```bash
+   npm run dev
+   ```
 
-- **POST** `/api/ai/generate-draft`: Groq-powered draft (fallback mock if `GROQ_API_KEY` missing)
-- **POST** `/api/ai/improve`: local improvement helper
-- **POST** `/api/ai/seo-suggestions`: local SEO helper
-- **POST** `/api/generate-blog`: Groq-powered blog generation
+---
 
-## Database schema / models
+## 📈 Future Roadmap
+- [ ] Direct video recording and VOD (Video on Demand) storage.
+- [ ] Subscription-based premium content for creators.
+- [ ] Collaborative blogging with real-time editing.
 
-Prisma schema lives in `prisma/schema.prisma` (PostgreSQL, `DATABASE_URL`). Current runtime APIs use `lib/store.ts` instead of Prisma.
+---
 
-## Environment variables
-
-See `.env.example`.
-
-```env
-DATABASE_URL="postgresql://user:password@localhost:5432/blogify"
-PORT=5000
-NODE_ENV=development
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-JWT_SECRET=your-super-secret-jwt-key-change-in-production
-OPENAI_API_KEY=sk-...
-GROQ_API_KEY=gsk-...
-NEXT_PUBLIC_API_URL=http://localhost:5000
-REDIS_URL=redis://localhost:6379
-NEXT_PUBLIC_STORAGE_URL=http://localhost:3000/uploads
-NEXT_PUBLIC_STUN_SERVERS=stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302
-NEXT_PUBLIC_TURN_SERVERS=
-NEXT_PUBLIC_TURN_USERNAME=
-NEXT_PUBLIC_TURN_PASSWORD=
-```
-
-## Install & run
-
-```bash
-npm install
-npm run dev
-```
-
-Open `http://localhost:3000`.
-
-### Demo login
-
-- email: `demo@example.com`
-- password: `password123`
-
-## Screenshots (placeholders)
-
-- `docs/screenshots/home.png`
-- `docs/screenshots/blog-list.png`
-- `docs/screenshots/blog-detail.png`
-- `docs/screenshots/create.png`
-- `docs/screenshots/streams.png`
-- `docs/screenshots/stream-viewer.png`
-- `docs/screenshots/go-live.png`
-- `docs/screenshots/dashboard.png`
-
-## Known limitations (from current code)
-
-- **Auth is not secure**: passwords are plain text; token is Base64 JSON (not signed, no expiry), and is not used to authorize API calls.
-- **No ownership checks**: most APIs trust `authorId` / `userId` in the request body.
-- **Blog like route mismatch**: the blog detail page posts to `/api/blogs/${blog.id}/like`, but the implemented endpoint is `/api/blogs/[slug]/like`. (There are directories under `app/api/blogs/[id]/...` but no `route.ts` there.)
-- **Prisma not integrated**: the Prisma schema is present but not used by the Next.js API routes.
-- **Standalone Express server is not wired**: `server/index.js` exists, but `package.json` doesn’t include scripts to run it and dependencies are not declared there.
+*Developed with ❤️ for the Creator Community.*
