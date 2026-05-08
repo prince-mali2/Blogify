@@ -49,7 +49,7 @@ export default function Header() {
         {/* Desktop Nav */}
         <nav className="hidden lg:flex items-center gap-1 bg-white/5 border border-white/10 rounded-full px-2 py-1 backdrop-blur-md">
           <Link href="/" className="px-5 py-2 text-slate-400 hover:text-white rounded-full text-sm font-medium transition-all hover:bg-white/5">Home</Link>
-          <Link href="/blog" className="px-5 py-2 text-slate-400 hover:text-white rounded-full text-sm font-medium transition-all hover:bg-white/5">Exlpore</Link>
+          <Link href="/blog" className="px-5 py-2 text-slate-400 hover:text-white rounded-full text-sm font-medium transition-all hover:bg-white/5">Explore</Link>
           <Link href="/streams" className="px-5 py-2 text-slate-400 hover:text-white rounded-full text-sm font-medium transition-all hover:bg-white/5 flex items-center gap-2">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>

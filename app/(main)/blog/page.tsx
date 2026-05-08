@@ -91,10 +91,16 @@ export default function BlogListPage() {
                 {blog.excerpt && <p className="text-slate-400 text-sm mb-4 line-clamp-2">{blog.excerpt}</p>}
                 <div className="flex items-center justify-between text-sm text-slate-500">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xs font-bold">
-                      {(blog.author?.username || 'A')[0].toUpperCase()}
-                    </div>
-                    <span className="text-slate-400">{blog.author?.username || 'Anonymous'}</span>
+                    <Link
+                      href={`/profile/${blog.author?.username || ''}`}
+                      className="flex items-center gap-2 hover:text-emerald-400 transition-colors group/author"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <div className="w-6 h-6 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xs font-bold group-hover/author:ring-2 group-hover/author:ring-emerald-400/50 transition-all">
+                        {(blog.author?.username || 'A')[0].toUpperCase()}
+                      </div>
+                      <span className="text-slate-400 group-hover/author:text-emerald-400">{blog.author?.username || 'Anonymous'}</span>
+                    </Link>
                     <span>·</span>
                     <span>{new Date(blog.createdAt).toLocaleDateString()}</span>
                   </div>

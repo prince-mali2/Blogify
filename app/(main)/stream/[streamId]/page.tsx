@@ -7,7 +7,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { AlertCircle, Send, Users, Eye, Radio, Volume2, VolumeX, Square } from 'lucide-react';
+import { AlertCircle, Send, Users, Eye, Radio, Volume2, VolumeX, Square, UserCheck, Loader2 } from 'lucide-react';
 
 const ICE_SERVERS = {
   iceServers: [
@@ -62,6 +62,9 @@ export default function StreamViewerPage() {
   const [isMuted, setIsMuted] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [chatError, setChatError] = useState('');
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [creatorId, setCreatorId] = useState<string | null>(null);
 
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -82,10 +85,22 @@ export default function StreamViewerPage() {
         setMessages(d.chatMessages || []);
         setIsLive(d.status === 'live' || d.status === 'active');
         setViewerCount(d.viewerCount || 0);
+        // Extract creator ID for follow functionality
+        const cId = d.creator?.id || d.creatorId || d.authorId;
+        setCreatorId(cId || null);
+        // Fetch follow state if we have a creator ID
+        if (cId && token) {
+          fetch(`/api/users/${cId}/follow`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+            .then(r => r.json())
+            .then(fd => setIsFollowing(fd.isFollowing ?? false))
+            .catch(() => {});
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [streamId]);
+  }, [streamId, token]);
 
   const createPeerConnection = useCallback(() => {
     if (pcRef.current) pcRef.current.close();
@@ -300,6 +315,35 @@ export default function StreamViewerPage() {
     }
   };
 
+  const handleFollow = useCallback(async () => {
+    if (!isAuthenticated || !creatorId) {
+      if (!isAuthenticated) window.location.href = '/login';
+      return;
+    }
+    setFollowLoading(true);
+    // Optimistic update
+    setIsFollowing(prev => !prev);
+    try {
+      const res = await fetch(`/api/users/${creatorId}/follow`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setIsFollowing(data.isFollowing);
+      } else {
+        setIsFollowing(prev => !prev); // revert
+      }
+    } catch {
+      setIsFollowing(prev => !prev); // revert
+    } finally {
+      setFollowLoading(false);
+    }
+  }, [isAuthenticated, creatorId, token]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
@@ -486,18 +530,37 @@ export default function StreamViewerPage() {
               </div>
 
               <div className="flex items-center justify-between pt-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold">
+                <Link
+                  href={`/profile/${creator.username || ''}`}
+                  className="flex items-center gap-3 group/creator"
+                >
+                  <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold group-hover/creator:ring-2 group-hover/creator:ring-emerald-400/50 group-hover/creator:scale-105 transition-all">
                     {(creator.username || 'A')[0].toUpperCase()}
                   </div>
                   <div>
-                    <p className="font-semibold text-white">{creator.username}</p>
+                    <p className="font-semibold text-white group-hover/creator:text-emerald-400 transition-colors">{creator.username}</p>
                     <p className="text-xs text-slate-400">Creator</p>
                   </div>
-                </div>
+                </Link>
                 {!isCreator && (
-                  <Button variant="outline" className="border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10">
-                    Follow
+                  <Button
+                    onClick={handleFollow}
+                    disabled={followLoading}
+                    variant="outline"
+                    className={`gap-2 transition-all ${
+                      isFollowing
+                        ? 'border-slate-600 bg-slate-700 text-slate-200 hover:bg-red-900/40 hover:border-red-500/50 hover:text-red-300'
+                        : 'border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10'
+                    }`}
+                  >
+                    {followLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : isFollowing ? (
+                      <UserCheck className="w-4 h-4" />
+                    ) : (
+                      <Users className="w-4 h-4" />
+                    )}
+                    {isFollowing ? 'Following' : 'Follow'}
                   </Button>
                 )}
               </div>
@@ -527,9 +590,12 @@ export default function StreamViewerPage() {
                 messages.map((msg: any, idx) => (
                   <div key={msg.id || idx} className="group">
                     <div className="flex items-baseline gap-2">
-                      <span className="font-semibold text-emerald-400 text-xs shrink-0">
+                      <Link 
+                        href={`/profile/${msg.author?.username || msg.authorUsername || ''}`}
+                        className="font-semibold text-emerald-400 text-xs shrink-0 hover:underline transition-all"
+                      >
                         {msg.author?.username || msg.authorUsername || 'Anon'}
-                      </span>
+                      </Link>
                       <span className="text-slate-600 text-xs">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                     <p className="text-slate-200 text-sm mt-0.5 break-words">{msg.content}</p>

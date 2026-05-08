@@ -203,52 +203,55 @@ export default function UnifiedPage() {
                 ))
               ) : (
                 blogs.map((blog, idx) => (
-                  <Link key={blog.id} href={`/blog/${blog.slug}`} className="group">
-                    <div 
-                      className="blogify-card h-full flex flex-col p-8 border-white/5 bg-white/[0.02] hover:bg-white/[0.05] rounded-[32px] transition-all"
-                      style={{ animationDelay: `${idx * 100}ms` }}
-                    >
-                      <div className="flex items-center gap-2 mb-6">
-                        {(blog.tags || ['General']).slice(0, 2).map((t: string) => (
-                          <span key={t} className="px-3 py-1 bg-white/5 border border-white/10 text-white/50 rounded-full text-[10px] font-bold uppercase tracking-widest leading-none">
-                            {t}
-                          </span>
-                        ))}
-                      </div>
-                      
-                      <h3 className="text-2xl font-bold text-white mb-4 line-clamp-2 leading-tight group-hover:text-cyan-400 transition-colors">
+                  <div key={blog.id} 
+                    className="blogify-card h-full flex flex-col p-8 border-white/5 bg-white/[0.02] hover:bg-white/[0.05] rounded-[32px] transition-all relative group"
+                    style={{ animationDelay: `${idx * 100}ms` }}
+                  >
+                    <div className="flex items-center gap-2 mb-6">
+                      {(blog.tags || ['General']).slice(0, 2).map((t: string) => (
+                        <span key={t} className="px-3 py-1 bg-white/5 border border-white/10 text-white/50 rounded-full text-[10px] font-bold uppercase tracking-widest leading-none">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                    
+                    <Link href={`/blog/${blog.slug}`} className="block mb-4">
+                      <h3 className="text-2xl font-bold text-white line-clamp-2 leading-tight group-hover:text-cyan-400 transition-colors">
                         {blog.title}
                       </h3>
-                      
-                      {blog.excerpt && (
-                        <p className="text-slate-500 text-sm line-clamp-3 mb-8 leading-relaxed italic">
-                          &quot;{blog.excerpt}&quot;
-                        </p>
-                      )}
-                      
-                      <div className="mt-auto flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-[10px] font-bold text-cyan-400 uppercase">
-                            {(blog.author?.username || 'U')[0]}
-                          </div>
-                          <span className="text-xs font-semibold text-slate-400">
-                            {blog.author?.username || 'Unknown'}
-                          </span>
+                    </Link>
+                    
+                    {blog.excerpt && (
+                      <p className="text-slate-500 text-sm line-clamp-3 mb-8 leading-relaxed italic">
+                        &quot;{blog.excerpt}&quot;
+                      </p>
+                    )}
+                    
+                    <div className="mt-auto flex items-center justify-between">
+                      <Link 
+                        href={`/profile/${blog.author?.username || ''}`}
+                        className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-[10px] font-bold text-cyan-400 uppercase group-hover:border-cyan-500/50">
+                          {(blog.author?.username || 'U')[0]}
                         </div>
-                        
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-1.5 text-slate-500 text-[11px] font-medium">
-                            <Eye className="w-3.5 h-3.5" />
-                            {blog.views || 0}
-                          </div>
-                          <div className="flex items-center gap-1.5 text-slate-500 text-[11px] font-medium">
-                            <Heart className="w-3.5 h-3.5 group-hover:text-red-500 transition-colors" />
-                            {blog.likes || 0}
-                          </div>
+                        <span className="text-xs font-semibold text-slate-400 hover:text-cyan-400 transition-colors">
+                          {blog.author?.username || 'Unknown'}
+                        </span>
+                      </Link>
+                      
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-1.5 text-slate-500 text-[11px] font-medium">
+                          <Eye className="w-3.5 h-3.5" />
+                          {blog.views || 0}
+                        </div>
+                        <div className="flex items-center gap-1.5 text-slate-500 text-[11px] font-medium">
+                          <Heart className="w-3.5 h-3.5 group-hover:text-red-500 transition-colors" />
+                          {blog.likes || 0}
                         </div>
                       </div>
                     </div>
-                  </Link>
+                  </div>
                 ))
               )}
             </div>

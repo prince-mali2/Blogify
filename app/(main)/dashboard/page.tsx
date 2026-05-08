@@ -200,7 +200,9 @@ export default function DashboardPage() {
               recentBlogs.map((blog: any) => (
                 <div key={blog.id} className="blogify-glass p-6 flex flex-col md:flex-row justify-between items-center gap-6 hover:bg-white/5 transition-all group">
                   <div className="flex-1">
-                    <h4 className="text-xl font-bold text-white mb-3 group-hover:text-cyan-400 transition-colors">{blog.title}</h4>
+                    <Link href={`/blog/${blog.slug}`}>
+                      <h4 className="text-xl font-bold text-white mb-3 group-hover:text-cyan-400 transition-colors cursor-pointer hover:underline">{blog.title}</h4>
+                    </Link>
                     <div className="flex flex-wrap gap-6 text-xs font-bold text-slate-500 uppercase tracking-widest">
                       <span className="flex items-center gap-2">
                         <Eye className="w-4 h-4 text-emerald-500" /> {blog.views.toLocaleString()} VIEWS
@@ -252,7 +254,9 @@ export default function DashboardPage() {
               recentStreams.map((stream: any) => (
                 <div key={stream.id} className="blogify-glass p-6 flex flex-col md:flex-row justify-between items-center gap-6 hover:bg-white/5 transition-all group">
                   <div className="flex-1">
-                    <h4 className="text-xl font-bold text-white mb-3 group-hover:text-red-400 transition-colors">{stream.title}</h4>
+                    <Link href={`/stream/${stream.id}`}>
+                      <h4 className="text-xl font-bold text-white mb-3 group-hover:text-red-400 transition-colors cursor-pointer hover:underline">{stream.title}</h4>
+                    </Link>
                     <div className="flex flex-wrap gap-6 text-xs font-bold text-slate-500 uppercase tracking-widest">
                       <span className="flex items-center gap-2">
                         {stream.status === 'live' ? (

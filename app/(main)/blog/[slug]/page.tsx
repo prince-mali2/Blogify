@@ -131,15 +131,18 @@ export default function BlogDetailPage() {
           <h1 className="text-5xl font-black text-white mb-8 leading-tight tracking-tight">{blog.title}</h1>
           
           <div className="flex items-center justify-between pb-8 border-b border-white/5">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-xl font-black shadow-lg shadow-emerald-500/20">
+            <Link
+              href={`/profile/${blog.author?.username || blog.authorUsername || ''}`}
+              className="flex items-center gap-4 group/author"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-xl font-black shadow-lg shadow-emerald-500/20 group-hover/author:scale-105 group-hover/author:shadow-emerald-500/40 transition-all">
                 {(blog.author?.username || blog.authorUsername || 'A')[0].toUpperCase()}
               </div>
               <div>
-                <p className="text-white text-lg font-bold">{blog.author?.username || blog.authorUsername || 'Anonymous'}</p>
-                <p className="text-slate-500 text-sm font-medium">Curator & Storyteller</p>
+                <p className="text-white text-lg font-bold group-hover/author:text-emerald-400 transition-colors">{blog.author?.username || blog.authorUsername || 'Anonymous'}</p>
+                <p className="text-slate-500 text-sm font-medium">Curator &amp; Storyteller</p>
               </div>
-            </div>
+            </Link>
             <div className="text-right">
               <time className="text-slate-400 text-sm font-bold block mb-1">
                 {new Date(publishDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
@@ -233,12 +236,20 @@ export default function BlogDetailPage() {
             comments.map((comment: any) => (
               <div key={comment.id} className="blogify-glass p-8 hover:bg-white/5 transition-all">
                 <div className="flex gap-6">
-                  <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white font-black shrink-0 shadow-inner">
+                  <Link
+                    href={`/profile/${comment.author?.username || comment.authorUsername || ''}`}
+                    className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white font-black shrink-0 shadow-inner hover:ring-2 hover:ring-emerald-400/50 hover:scale-105 transition-all"
+                  >
                     {(comment.author?.username || comment.authorUsername || 'A')[0].toUpperCase()}
-                  </div>
+                  </Link>
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-bold text-white text-lg">{comment.author?.username || comment.authorUsername || 'Anonymous'}</h3>
+                      <Link
+                        href={`/profile/${comment.author?.username || comment.authorUsername || ''}`}
+                        className="font-bold text-white text-lg hover:text-emerald-400 transition-colors"
+                      >
+                        {comment.author?.username || comment.authorUsername || 'Anonymous'}
+                      </Link>
                       <time className="text-xs font-bold text-slate-600 uppercase tracking-widest">{new Date(comment.createdAt).toLocaleDateString()}</time>
                     </div>
                     <p className="text-slate-300 text-lg leading-relaxed">{comment.content}</p>

@@ -49,24 +49,22 @@ export default function StreamsPage() {
     const bgGradient = getGradient(stream.id);
 
     return (
-      <Link href={`/stream/${stream.id}`} className={isFeatured ? 'col-span-full block h-full' : 'block h-full'}>
-        <Card className={`h-full flex flex-col bg-slate-800/40 backdrop-blur-md border overflow-hidden group hover:-translate-y-1 transition-all duration-300 cursor-pointer ${
+      <div className={isFeatured ? 'col-span-full block h-full' : 'block h-full'}>
+        <Card className={`h-full flex flex-col bg-slate-800/40 backdrop-blur-md border overflow-hidden group hover:-translate-y-1 transition-all duration-300 ${
           isLive ? 'border-red-500/30 hover:border-red-400/60 shadow-[0_0_15px_rgba(239,68,68,0.1)] hover:shadow-[0_0_25px_rgba(239,68,68,0.2)]' : 'border-slate-700 hover:border-slate-500 shadow-lg hover:shadow-xl'
         }`}>
           <div className={`relative flex-1 ${isFeatured ? 'flex flex-col md:flex-row' : 'flex flex-col'}`}>
-            {/* Thumbnail */}
-            <div className={`relative overflow-hidden shrink-0 ${bgGradient} ${isFeatured ? 'md:w-2/3 aspect-video md:aspect-[21/9]' : 'aspect-video w-full'}`}>
+            {/* Thumbnail area - Link to stream */}
+            <Link href={`/stream/${stream.id}`} className={`relative overflow-hidden shrink-0 ${bgGradient} ${isFeatured ? 'md:w-2/3 aspect-video md:aspect-[21/9]' : 'aspect-video w-full'}`}>
               <div className="absolute inset-0 flex items-center justify-center opacity-50 group-hover:opacity-80 group-hover:scale-110 transition-all duration-500">
                 <Video className={`w-16 h-16 ${isLive ? 'text-red-400/50' : 'text-slate-500/50'}`} />
               </div>
               
-              {/* Play Overlay */}
               <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                 <div className="w-14 h-14 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center transform scale-75 group-hover:scale-100 transition-transform duration-300 delay-75">
                   <Play className="w-6 h-6 text-white ml-1" />
                 </div>
               </div>
-
               {isLive && (
                 <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-red-600/90 backdrop-blur text-white text-xs font-bold px-2.5 py-1 rounded-md shadow-lg border border-red-500/50">
                   <div className="w-2 h-2 rounded-full bg-white animate-pulse" /> LIVE
@@ -75,11 +73,10 @@ export default function StreamsPage() {
               <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-black/70 backdrop-blur text-white text-xs font-medium px-2.5 py-1 rounded-md">
                 <Eye className="w-3.5 h-3.5 text-slate-300" /> {stream._count?.viewers || 0}
               </div>
-            </div>
-
+            </Link>
             {/* Info */}
             <div className={`p-5 flex flex-col flex-1 ${isFeatured ? 'md:w-1/3' : 'w-full'}`}>
-              <div>
+              <Link href={`/stream/${stream.id}`} className="block">
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <h3 className={`font-bold text-white line-clamp-2 group-hover:text-red-400 transition-colors ${isFeatured ? 'text-2xl' : 'text-base'}`}>
                     {stream.title}
@@ -91,19 +88,19 @@ export default function StreamsPage() {
                     {stream.description}
                   </p>
                 )}
-              </div>
+              </Link>
               
               <div className="flex items-center justify-between mt-auto pt-4">
-                <div className="flex items-center gap-3">
-                  <div className={`rounded-full flex items-center justify-center text-white font-bold relative shrink-0 ${isFeatured ? 'w-10 h-10 bg-indigo-600 text-sm' : 'w-8 h-8 bg-indigo-600 text-xs'}`}>
+                <Link href={`/profile/${stream.creator?.username || stream.authorUsername || ''}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity group/creator">
+                  <div className={`rounded-full flex items-center justify-center text-white font-bold relative shrink-0 transition-all group-hover/creator:ring-2 group-hover/creator:ring-red-400/50 ${isFeatured ? 'w-10 h-10 bg-indigo-600 text-sm' : 'w-8 h-8 bg-indigo-600 text-xs'}`}>
                     {isLive && <div className="absolute inset-0 rounded-full border-2 border-red-500 animate-ping opacity-20" />}
                     {(stream.creator?.username || stream.authorUsername || 'A')[0].toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <span className={`block text-white font-medium truncate ${isFeatured ? 'text-sm' : 'text-xs'}`}>{stream.creator?.username || stream.authorUsername || 'Anonymous'}</span>
+                    <span className={`block text-white font-medium truncate group-hover/creator:text-red-400 transition-colors ${isFeatured ? 'text-sm' : 'text-xs'}`}>{stream.creator?.username || stream.authorUsername || 'Anonymous'}</span>
                     <span className="block text-slate-500 text-[10px]">Creator</span>
                   </div>
-                </div>
+                </Link>
                 {!isFeatured && (
                   <span className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-1 rounded shrink-0 ${isLive ? 'bg-red-500/10 text-red-400' : 'bg-slate-700/50 text-slate-400'}`}>
                     {isLive ? 'Playing' : stream.status === 'ended' ? 'Ended' : 'Scheduled'}
@@ -113,7 +110,7 @@ export default function StreamsPage() {
             </div>
           </div>
         </Card>
-      </Link>
+      </div>
     );
   };
 

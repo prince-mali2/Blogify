@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/app/contexts/AuthContext';
@@ -9,13 +9,13 @@ import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Eye, Heart, MessageCircle, Radio, FileText,
-  Users, Calendar, AlertCircle
+  Users, Calendar, AlertCircle, UserCheck, Loader2
 } from 'lucide-react';
 
 export default function ProfilePage() {
   const params = useParams();
   const username = params?.username as string;
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, token } = useAuth();
 
   const [profile, setProfile] = useState<any>(null);
   const [blogs, setBlogs] = useState<any[]>([]);
@@ -23,11 +23,16 @@ export default function ProfilePage() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [followLoading, setFollowLoading] = useState(false);
 
   useEffect(() => {
     if (!username) return;
     setLoading(true);
-    fetch(`/api/users/profile/${username}`)
+    fetch(`/api/users/profile/${username}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
       .then(r => {
         if (r.status === 404) { setNotFound(true); setLoading(false); return null; }
         return r.json();
@@ -38,12 +43,49 @@ export default function ProfilePage() {
         setBlogs(data.blogs || []);
         setStreams(data.streams || []);
         setStats(data.stats || {});
+        setIsFollowing(data.isFollowing ?? false);
+        setFollowerCount(data.stats?.followers ?? data.user?.followerCount ?? 0);
         setLoading(false);
       })
       .catch(() => { setNotFound(true); setLoading(false); });
-  }, [username]);
+  }, [username, token]);
 
   const isOwnProfile = currentUser?.username?.toLowerCase() === username?.toLowerCase();
+
+  const handleFollow = useCallback(async () => {
+    if (!currentUser) {
+      window.location.href = '/login';
+      return;
+    }
+    setFollowLoading(true);
+    // Optimistic update
+    setIsFollowing(prev => !prev);
+    setFollowerCount(prev => isFollowing ? prev - 1 : prev + 1);
+    try {
+      const res = await fetch(`/api/users/${profile.id}/follow`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setIsFollowing(data.isFollowing);
+        setFollowerCount(data.followerCount);
+      } else {
+        // Revert on error
+        setIsFollowing(prev => !prev);
+        setFollowerCount(prev => isFollowing ? prev + 1 : prev - 1);
+      }
+    } catch {
+      // Revert on network error
+      setIsFollowing(prev => !prev);
+      setFollowerCount(prev => isFollowing ? prev + 1 : prev - 1);
+    } finally {
+      setFollowLoading(false);
+    }
+  }, [currentUser, profile?.id, token, isFollowing]);
 
   if (loading) {
     return (
@@ -125,8 +167,23 @@ export default function ProfilePage() {
                   </Button>
                 </Link>
               ) : (
-                <Button className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
-                  <Users className="w-4 h-4" /> Follow
+                <Button
+                  onClick={handleFollow}
+                  disabled={followLoading}
+                  className={`gap-2 transition-all ${
+                    isFollowing
+                      ? 'bg-slate-700 hover:bg-red-600/80 border border-slate-600 text-slate-200'
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  }`}
+                >
+                  {followLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : isFollowing ? (
+                    <UserCheck className="w-4 h-4" />
+                  ) : (
+                    <Users className="w-4 h-4" />
+                  )}
+                  {followLoading ? 'Loading...' : isFollowing ? 'Following' : 'Follow'}
                 </Button>
               )}
             </div>
@@ -157,7 +214,7 @@ export default function ProfilePage() {
             { icon: FileText, label: 'Articles', value: stats?.totalBlogs ?? 0, color: 'text-emerald-400' },
             { icon: Eye, label: 'Total Views', value: stats?.totalViews ?? 0, color: 'text-teal-400' },
             { icon: Heart, label: 'Total Likes', value: stats?.totalLikes ?? 0, color: 'text-red-400' },
-            { icon: Radio, label: 'Streams', value: stats?.totalStreams ?? 0, color: 'text-orange-400' },
+            { icon: Users, label: 'Followers', value: followerCount, color: 'text-purple-400' },
           ].map(({ icon: Icon, label, value, color }) => (
             <Card key={label} className="bg-slate-800 border-slate-700 p-4 text-center">
               <Icon className={`w-5 h-5 ${color} mx-auto mb-1`} />
