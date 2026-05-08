@@ -177,6 +177,9 @@ export default function CreatePage() {
         }),
       });
       const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to publish');
+      }
       router.push(`/blog/${data.slug}`);
     } catch (err: any) {
       setError(err.message || 'Failed to publish');

@@ -51,8 +51,10 @@ function getFirebaseErrorMessage(code: string): string {
   return messages[code] || 'Authentication failed. Please try again.';
 }
 
-async function syncFirebaseUser(firebaseUser: FirebaseUser, extraData?: { username?: string; fullName?: string }): Promise<User> {
-  const token = await firebaseUser.getIdToken();
+async function syncFirebaseUser(
+  firebaseUser: FirebaseUser,
+  extraData?: { username?: string; fullName?: string }
+): Promise<{ user: User; token: string }> {
   const response = await fetch('/api/auth/firebase-sync', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -71,7 +73,7 @@ async function syncFirebaseUser(firebaseUser: FirebaseUser, extraData?: { userna
   }
 
   const data = await response.json();
-  return data.user as User;
+  return { user: data.user as User, token: data.token as string };
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -100,11 +102,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          const freshToken = await firebaseUser.getIdToken();
-          const syncedUser = await syncFirebaseUser(firebaseUser);
+          const { user: syncedUser, token: jwtToken } = await syncFirebaseUser(firebaseUser);
           setUser(syncedUser);
-          setToken(freshToken);
-          localStorage.setItem('token', freshToken);
+          setToken(jwtToken);
+          localStorage.setItem('token', jwtToken);
           localStorage.setItem('user', JSON.stringify(syncedUser));
         } catch {
           // silently fail — user will see loading=false and can re-auth
@@ -124,11 +125,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string): Promise<User> => {
     try {
       const credential = await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
-      const freshToken = await credential.user.getIdToken();
-      const syncedUser = await syncFirebaseUser(credential.user);
+      const { user: syncedUser, token: jwtToken } = await syncFirebaseUser(credential.user);
       setUser(syncedUser);
-      setToken(freshToken);
-      localStorage.setItem('token', freshToken);
+      setToken(jwtToken);
+      localStorage.setItem('token', jwtToken);
       localStorage.setItem('user', JSON.stringify(syncedUser));
       return syncedUser;
     } catch (err: unknown) {
@@ -145,14 +145,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ): Promise<User> => {
     try {
       const credential = await createUserWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
-      const freshToken = await credential.user.getIdToken();
-      const syncedUser = await syncFirebaseUser(credential.user, {
+      const { user: syncedUser, token: jwtToken } = await syncFirebaseUser(credential.user, {
         username: username.trim().toLowerCase(),
         fullName: fullName?.trim() || username,
       });
       setUser(syncedUser);
-      setToken(freshToken);
-      localStorage.setItem('token', freshToken);
+      setToken(jwtToken);
+      localStorage.setItem('token', jwtToken);
       localStorage.setItem('user', JSON.stringify(syncedUser));
       return syncedUser;
     } catch (err: unknown) {
@@ -164,11 +163,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginWithGoogle = async (): Promise<User> => {
     try {
       const credential = await signInWithPopup(auth, googleProvider);
-      const freshToken = await credential.user.getIdToken();
-      const syncedUser = await syncFirebaseUser(credential.user);
+      const { user: syncedUser, token: jwtToken } = await syncFirebaseUser(credential.user);
       setUser(syncedUser);
-      setToken(freshToken);
-      localStorage.setItem('token', freshToken);
+      setToken(jwtToken);
+      localStorage.setItem('token', jwtToken);
       localStorage.setItem('user', JSON.stringify(syncedUser));
       return syncedUser;
     } catch (err: unknown) {
@@ -180,11 +178,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginWithGithub = async (): Promise<User> => {
     try {
       const credential = await signInWithPopup(auth, githubProvider);
-      const freshToken = await credential.user.getIdToken();
-      const syncedUser = await syncFirebaseUser(credential.user);
+      const { user: syncedUser, token: jwtToken } = await syncFirebaseUser(credential.user);
       setUser(syncedUser);
-      setToken(freshToken);
-      localStorage.setItem('token', freshToken);
+      setToken(jwtToken);
+      localStorage.setItem('token', jwtToken);
       localStorage.setItem('user', JSON.stringify(syncedUser));
       return syncedUser;
     } catch (err: unknown) {

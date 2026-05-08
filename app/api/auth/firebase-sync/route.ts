@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { signAuthToken } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,6 +51,7 @@ export async function POST(request: NextRequest) {
         fullName: user.fullName,
         avatar: user.avatar,
       },
+      token: signAuthToken({ id: user.id, email: user.email, username: user.username }),
     });
   } catch (error) {
     console.error('Firebase sync error:', error);
