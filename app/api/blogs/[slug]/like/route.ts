@@ -1,26 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { store } from '@/lib/store';
+import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
-import { saveBlogs } from '@/lib/store';
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
+) {
   const { slug } = await params;
-  const blog = Array.from(store.blogs.values()).find(b => b.slug === slug) || store.blogs.get(slug);
+  // Support both slug and id (fixes the UI bug that posts /api/blogs/${id}/like)
+  const blog = await prisma.blog.findFirst({ where: { OR: [{ slug }, { id: slug }] } });
   if (!blog) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
   try {
     const auth = requireAuth(request);
     const userId = auth.id;
-    const alreadyLiked = blog.likedBy.includes(userId);
-    if (alreadyLiked) {
-      blog.likes = Math.max(0, blog.likes - 1);
-      blog.likedBy = blog.likedBy.filter(id => id !== userId);
+
+    const existing = await prisma.contentLike.findUnique({
+      where: { blogId_userId: { blogId: blog.id, userId } },
+    });
+
+    if (existing) {
+      await prisma.contentLike.delete({
+        where: { blogId_userId: { blogId: blog.id, userId } },
+      });
     } else {
-      blog.likes = blog.likes + 1;
-      blog.likedBy = [...blog.likedBy, userId];
+      await prisma.contentLike.create({
+        data: { blogId: blog.id, userId },
+      });
     }
-    store.blogs.set(blog.id, blog);
-    saveBlogs();
-    return NextResponse.json({ likes: blog.likes, liked: !alreadyLiked });
+
+    const likeCount = await prisma.contentLike.count({ where: { blogId: blog.id } });
+    return NextResponse.json({ likes: likeCount, liked: !existing });
   } catch (error) {
     if ((error as any)?.status === 401) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     return NextResponse.json({ error: 'Failed to like blog' }, { status: 500 });

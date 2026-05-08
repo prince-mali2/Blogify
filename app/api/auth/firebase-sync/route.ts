@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { store, saveUsers } from '@/lib/store';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,73 +10,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing uid or email' }, { status: 400 });
     }
 
-    let existingUser = store.users.get(uid);
+    const defaultAvatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(uid)}`;
 
-    if (existingUser) {
-      const defaultAvatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(existingUser.username)}`;
-      let updated = false;
-
-      if (photoURL && existingUser.avatar !== photoURL) {
-        existingUser.avatar = photoURL;
-        updated = true;
-      } else if (!existingUser.avatar) {
-        existingUser.avatar = defaultAvatar;
-        updated = true;
-      }
-
-      if (updated) {
-        store.users.set(uid, existingUser);
-        store.usersByEmail.set(email.toLowerCase(), existingUser);
-        saveUsers();
-      }
-      return NextResponse.json({
-        user: {
-          id: existingUser.id,
-          email: existingUser.email,
-          username: existingUser.username,
-          fullName: existingUser.fullName,
-          avatar: existingUser.avatar,
-        }
-      });
-    }
-
+    // Determine final username
     let finalUsername = username ||
       (displayName ? displayName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') : null) ||
       email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '');
 
-    let usernameCandidate = finalUsername;
+    // Check for username collision and add suffix if needed
+    let candidate = finalUsername;
     let counter = 1;
-    while (store.usersByUsername.get(usernameCandidate)) {
-      usernameCandidate = `${finalUsername}_${counter}`;
-      counter++;
+    while (true) {
+      const conflict = await prisma.user.findUnique({ where: { username: candidate } });
+      if (!conflict) break;
+      candidate = `${finalUsername}_${counter++}`;
     }
-    finalUsername = usernameCandidate;
+    finalUsername = candidate;
 
-    const defaultAvatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(finalUsername)}`;
-
-    const newUser = {
-      id: uid,
-      email: email.toLowerCase(),
-      username: finalUsername,
-      fullName: fullName || displayName || finalUsername,
-      password: '',
-      avatar: photoURL || defaultAvatar,
-      createdAt: new Date().toISOString(),
-    };
-
-    store.users.set(uid, newUser);
-    store.usersByEmail.set(email.toLowerCase(), newUser);
-    store.usersByUsername.set(finalUsername, newUser);
-    saveUsers();
+    const user = await prisma.user.upsert({
+      where: { id: uid },
+      update: {
+        avatar: photoURL || defaultAvatar,
+      },
+      create: {
+        id: uid,
+        email: email.toLowerCase(),
+        username: finalUsername,
+        fullName: fullName || displayName || finalUsername,
+        password: '', // Firebase-managed auth; no local password
+        avatar: photoURL || defaultAvatar,
+      },
+    });
 
     return NextResponse.json({
       user: {
-        id: newUser.id,
-        email: newUser.email,
-        username: newUser.username,
-        fullName: newUser.fullName,
-        avatar: newUser.avatar,
-      }
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        fullName: user.fullName,
+        avatar: user.avatar,
+      },
     });
   } catch (error) {
     console.error('Firebase sync error:', error);

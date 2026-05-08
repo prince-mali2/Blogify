@@ -1,42 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { store } from '@/lib/store';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ username: string }> }
 ) {
   const { username } = await params;
 
-  // Find user by username (use index map for O(1) lookup)
-  const user =
-    store.usersByUsername.get(username.toLowerCase()) ??
-    Array.from(store.users.values()).find(
-      u => u.username.toLowerCase() === username.toLowerCase()
-    );
+  const user = await prisma.user.findUnique({
+    where: { username: username.toLowerCase() },
+  });
 
   if (!user) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
-  // Get user's published blogs
-  const blogs = Array.from(store.blogs.values())
-    .filter(b => b.authorId === user.id && b.published)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .map(b => ({
-      ...b,
-      _count: {
-        comments: Array.from(store.comments.values()).filter(c => c.blogId === b.id).length,
-        likes: b.likes,
-      },
-    }));
+  const blogs = await prisma.blog.findMany({
+    where: { authorId: user.id, published: true },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      _count: { select: { comments: true, likes: true } },
+    },
+  });
 
-  // Get user's streams
-  const streams = Array.from(store.streams.values())
-    .filter(s => s.authorId === user.id)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const streams = await prisma.liveStream.findMany({
+    where: { creatorId: user.id },
+    orderBy: { createdAt: 'desc' },
+  });
 
-  const totalViews = blogs.reduce((sum, b) => sum + (b.views || 0), 0);
-  const totalLikes = blogs.reduce((sum, b) => sum + (b.likes || 0), 0);
+  const totalViews = blogs.reduce((sum, b) => sum + b.viewCount, 0);
+  const totalLikes = blogs.reduce((sum, b) => sum + b._count.likes, 0);
 
   const { password: _, ...safeUser } = user;
 

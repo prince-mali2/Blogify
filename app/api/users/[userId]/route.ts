@@ -1,30 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { store, saveUsers } from '@/lib/store';
+import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ userId: string }> }
+) {
   const { userId } = await params;
-  const user = store.users.get(userId);
+  const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
   const { password: _, ...safe } = user;
   return NextResponse.json(safe);
 }
 
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ userId: string }> }
+) {
   const { userId } = await params;
-  const user = store.users.get(userId);
+  const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
   try {
     const auth = requireAuth(request);
     if (auth.id !== userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const body = await request.json();
-    const { password, email, id, createdAt, ...updates } = body || {};
-    const updated = { ...user, ...updates };
-    store.users.set(userId, updated);
-    store.usersByEmail.set(updated.email, updated);
-    store.usersByUsername.set(updated.username.toLowerCase(), updated);
-    saveUsers();
+    // Strip immutable fields
+    const { password, email, id, createdAt, updatedAt, ...updates } = body || {};
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: updates,
+    });
+
     const { password: _, ...safe } = updated;
     return NextResponse.json(safe);
   } catch (error) {
