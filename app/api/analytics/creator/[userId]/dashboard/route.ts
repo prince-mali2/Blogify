@@ -122,8 +122,10 @@ export async function GET(
       title: b.title,
       slug: b.slug,
       views: b.viewCount,
-      likes: b._count.likes,
-      comments: b._count.comments,
+      _count: {
+        likes: b._count.likes,
+        comments: b._count.comments,
+      },
       published: b.published,
       createdAt: b.createdAt,
       publishedAt: b.publishedAt,

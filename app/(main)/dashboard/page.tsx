@@ -17,6 +17,7 @@ interface Analytics {
   totalBlogLikes: number;
   totalFollowers: number;
   totalComments: number;
+  engagementRate: number;
 }
 
 export default function DashboardPage() {
@@ -24,6 +25,7 @@ export default function DashboardPage() {
   const { isAuthenticated, user, loading: authLoading } = useAuth();
 
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [chartData, setChartData] = useState<any[]>([]);
   const [recentBlogs, setRecentBlogs] = useState([]);
   const [recentStreams, setRecentStreams] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,9 +44,16 @@ export default function DashboardPage() {
 
   const fetchDashboardData = async () => {
     try {
-      const response = await fetch(`${API_URL}/analytics/creator/${user?.id}/dashboard`);
+      const response = await fetch(`${API_URL}/analytics/creator/${user?.id}/dashboard`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
       const data = await response.json();
+      if (data.error) throw new Error(data.error);
+      
       setAnalytics(data.analytics);
+      setChartData(data.chartData || []);
       setRecentBlogs(data.recentBlogs || []);
       setRecentStreams(data.recentStreams || []);
     } catch (err: any) {
@@ -57,7 +66,10 @@ export default function DashboardPage() {
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <p className="text-slate-400">Loading dashboard...</p>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-slate-400 font-medium">Analyzing your data...</p>
+        </div>
       </div>
     );
   }
@@ -65,17 +77,6 @@ export default function DashboardPage() {
   if (!isAuthenticated) {
     return null;
   }
-
-  // Mock data for charts
-  const chartData = [
-    { date: 'Mon', views: 400, likes: 240 },
-    { date: 'Tue', views: 300, likes: 220 },
-    { date: 'Wed', views: 200, likes: 229 },
-    { date: 'Thu', views: 270, likes: 200 },
-    { date: 'Fri', views: 320, likes: 250 },
-    { date: 'Sat', views: 380, likes: 290 },
-    { date: 'Sun', views: 450, likes: 320 },
-  ];
 
   return (
     <div className="min-h-screen bg-slate-900">
@@ -94,12 +95,13 @@ export default function DashboardPage() {
       )}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-12">
         {[
-          { label: 'Total Views', value: analytics?.totalBlogViews, icon: Eye, color: '#34d399' },
-          { label: 'Total Likes', value: analytics?.totalBlogLikes, icon: Heart, color: '#f43f5e' },
-          { label: 'Followers', value: analytics?.totalFollowers, icon: Users, color: '#06b6d4' },
-          { label: 'Comments', value: analytics?.totalComments, icon: MessageCircle, color: '#a78bfa' },
+          { label: 'Total Views', value: analytics?.totalBlogViews, icon: Eye, color: '#34d399', suffix: '' },
+          { label: 'Total Likes', value: analytics?.totalBlogLikes, icon: Heart, color: '#f43f5e', suffix: '' },
+          { label: 'Engagement', value: analytics?.engagementRate, icon: TrendingUp, color: '#fbbf24', suffix: '%' },
+          { label: 'Followers', value: analytics?.totalFollowers, icon: Users, color: '#06b6d4', suffix: '' },
+          { label: 'Comments', value: analytics?.totalComments, icon: MessageCircle, color: '#a78bfa', suffix: '' },
         ].map(stat => (
           <div key={stat.label} className="blogify-glass p-8 group hover:bg-white/5 transition-all">
             <div className="flex items-center justify-between mb-4">
@@ -107,7 +109,8 @@ export default function DashboardPage() {
               <stat.icon style={{ color: stat.color }} className="w-6 h-6 opacity-80 group-hover:scale-110 transition-transform" />
             </div>
             <p className="text-4xl font-black text-white tracking-tight">
-              {typeof stat.value === 'number' ? stat.value.toLocaleString() : 0}
+              {typeof stat.value === 'number' ? (stat.label === 'Engagement' ? stat.value.toFixed(1) : stat.value.toLocaleString()) : 0}
+              <span className="text-lg text-slate-500 ml-1 font-bold">{stat.suffix}</span>
             </p>
           </div>
         ))}
@@ -129,8 +132,9 @@ export default function DashboardPage() {
                 contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', backdropFilter: 'blur(10px)' }}
                 labelStyle={{ color: '#fff', fontWeight: 'bold' }}
               />
-              <Line type="monotone" dataKey="views" stroke="#10b981" strokeWidth={4} dot={false} animationDuration={2000} />
-              <Line type="monotone" dataKey="likes" stroke="#f43f5e" strokeWidth={4} dot={false} animationDuration={2000} />
+              <Line type="monotone" dataKey="views" name="Views" stroke="#10b981" strokeWidth={4} dot={false} animationDuration={2000} />
+              <Line type="monotone" dataKey="likes" name="Likes" stroke="#f43f5e" strokeWidth={4} dot={false} animationDuration={2000} />
+              <Line type="monotone" dataKey="comments" name="Comments" stroke="#a78bfa" strokeWidth={3} dot={false} animationDuration={2000} strokeDasharray="5 5" />
             </LineChart>
           </ResponsiveContainer>
         </div>
