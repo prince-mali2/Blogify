@@ -24,6 +24,7 @@ export default function AIChatbot() {
   const [unread, setUnread] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -33,7 +34,15 @@ export default function AIChatbot() {
   }, [isOpen]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!messagesEndRef.current || !chatContainerRef.current) return;
+    
+    const container = chatContainerRef.current;
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+    
+    // Only auto-scroll if user is near bottom or it's the first few messages
+    if (isNearBottom || messages.length <= 1) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages]);
 
   const sendMessage = async () => {
@@ -248,7 +257,10 @@ export default function AIChatbot() {
             </div>
 
             {/* Messages */}
-            <div className="chat-messages">
+            <div 
+              ref={chatContainerRef}
+              className="chat-messages"
+            >
               {messages.map((msg) => (
                 <div
                   key={msg.id}

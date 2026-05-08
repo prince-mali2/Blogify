@@ -71,6 +71,7 @@ export default function StreamViewerPage() {
   const viewerIdRef = useRef(generateViewerId());
   const broadcasterIdRef = useRef<string>('broadcaster');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Fetch initial stream data
   useEffect(() => {
@@ -200,7 +201,20 @@ export default function StreamViewerPage() {
       // Also fetch latest chat messages
       const streamRes = await fetch(`/api/streams/${streamId}`);
       const streamData = await streamRes.json();
-      setMessages(streamData.chatMessages || []);
+      const newMessages = streamData.chatMessages || [];
+      
+      setMessages(prev => {
+        // Only update state if message count changed or last message content changed
+        if (newMessages.length === prev.length) {
+          if (newMessages.length === 0) return prev;
+          const lastNew = newMessages[newMessages.length - 1];
+          const lastPrev = prev[prev.length - 1];
+          if (lastNew.id === lastPrev.id || lastNew.content === lastPrev.content) {
+            return prev;
+          }
+        }
+        return newMessages;
+      });
     } catch {}
   }, [streamId, createPeerConnection]);
 
@@ -238,7 +252,15 @@ export default function StreamViewerPage() {
   }, [streamId, pollAll, user?.username]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!messagesEndRef.current || !chatContainerRef.current) return;
+    
+    const container = chatContainerRef.current;
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+    
+    // Only auto-scroll if user is near bottom or it's the first few messages
+    if (isNearBottom || messages.length <= 1) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -480,7 +502,10 @@ export default function StreamViewerPage() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <div 
+              ref={chatContainerRef}
+              className="flex-1 overflow-y-auto p-4 space-y-3"
+            >
               {messages.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-slate-500 text-sm">No messages yet</p>
